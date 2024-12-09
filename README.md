@@ -8,7 +8,7 @@
 #### npm install
 
 ### Step 3: Configure Environment Variables
-### Create a `.env.local` file in the root directory and configure your environment variables as needed.
+#### Create a `.env.local` file in the root directory and configure your environment variables as needed.
 
 #### Example:
 #### echo "NEXT_PUBLIC_API_URL=https://api.example.com" > .env.local
