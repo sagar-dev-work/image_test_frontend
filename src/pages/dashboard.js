@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadingImageId, setUploadingImageId] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0); // Progress state
   const [modalImage, setModalImage] = useState(null); // For the modal popup image
   const router = useRouter();
 
@@ -76,11 +77,17 @@ export default function Dashboard() {
     }
 
     setIsUploading(true);
+    setUploadProgress(0);
+
     api
       .post('/upload-image', formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(progress); // Update progress bar
         },
       })
       .then((response) => {
@@ -88,9 +95,15 @@ export default function Dashboard() {
         setUploadingImageId(response.data.image_id);
         checkImageProcessingStatus(response.data.image_id);
         setIsUploading(false);
+        setUploadProgress(0);
+
+        // Clear the file input and reset selectedFile
+        setSelectedFile(null);
+        event.target.reset();
       })
       .catch((err) => {
         setIsUploading(false);
+        setUploadProgress(0);
         toastr.error(err.response?.data?.message || 'Error uploading image');
         console.error('Error uploading image:', err);
       });
@@ -115,14 +128,13 @@ export default function Dashboard() {
             clearInterval(intervalId); // Stop polling
             toastr.success('Image processing completed!');
 
-            const imageUrl = response.data.generated_images.replace(/\\/g, ''); // Clean up the URL
+            const imageUrl = response.data.generated_images.replace(/\\/g, '');
 
             const newImage = { url: imageUrl };
             if (!images.some((existingImage) => existingImage.url === newImage.url)) {
-              setImages((prevImages) => [...prevImages, newImage]); // Add unique image
+              setImages((prevImages) => [...prevImages, newImage]);
             }
 
-            // setIsUploading(false);
             setUploadingImageId(null);
           }
         })
@@ -132,8 +144,6 @@ export default function Dashboard() {
         });
     }, 5000);
   };
-
-  
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -160,33 +170,52 @@ export default function Dashboard() {
       <div className="card">
         <div className="card-header">
           <h1>Welcome, {user.name}!</h1>
-          <p>Email: {user.email}</p>
+          <p className='email-text'>Email: {user.email}</p>
           <button className="logout-btn" onClick={handleLogout}>
             Logout
           </button>
         </div>
       </div>
 
-      <form onSubmit={handleFileUpload}>
-        <input type="file" accept="image/*" onChange={handleFileChange} />
-        <button type="submit" disabled={isUploading}>
-          Upload Image
-        </button>
+      <form onSubmit={handleFileUpload} className='upload-form'>
+        <div>
+          <input type="file" accept="image/*" onChange={handleFileChange} />
+          <button type="submit" className="upload-img-btn">Upload Image</button>
+        </div>
+
       </form>
 
-      {isUploading && <p>Uploading and processing your image...</p>}
+      {isUploading && (
+        <div className="upload-popup">
+          <div className="upload-header">
+            <h3>Uploading Image</h3>
+          </div>
+          <div className="upload-body">
+            <p>Progress: {uploadProgress}%</p>
+            <div className="upload-progress-bar">
+              <div
+                className="upload-progress"
+                style={{ width: `${uploadProgress}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      )}
 
-      <h2>Uploaded Images:</h2>
+      <h2 className="uploaded-images-text">Uploaded Images:</h2>
       {images.length > 0 ? (
         <div className="uploaded-images">
           {images.map((image, index) => (
-            <img
-              key={index}
-              src={image.url}
-              alt={`Uploaded ${index}`}
-              onClick={() => openModal(image.url)}
-              style={{ width: '100px', height: '100px', margin: '5px', cursor: 'pointer' }}
-            />
+            <>
+              <img
+                key={index}
+                src={image.url}
+                alt={`Uploaded ${index}`}
+                onClick={() => openModal(image.url)}
+                style={{ width: '100px', height: '100px', margin: '5px', cursor: 'pointer' }}
+              />
+              {/* <button onClick={() => handleDeleteImage(image.id)}>Delete</button> */}
+            </>
           ))}
         </div>
       ) : (
@@ -202,9 +231,39 @@ export default function Dashboard() {
       )}
 
       <style jsx>{`
-        .uploaded-images {
-          display: flex;
-          flex-wrap: wrap;
+        .upload-popup {
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          background: white;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+          border-radius: 8px;
+          width: 300px;
+          padding: 15px;
+          z-index: 1000;
+        }
+        .upload-header {
+          font-weight: bold;
+          font-size: 16px;
+          margin-bottom: 10px;
+          text-align: center;
+        }
+        .upload-body {
+          text-align: center;
+        }
+        .upload-progress-bar {
+          background: #e0e0e0;
+          border-radius: 5px;
+          height: 10px;
+          width: 100%;
+          margin-top: 10px;
+          position: relative;
+        }
+        .upload-progress {
+          background: #4285f4;
+          height: 100%;
+          border-radius: 5px;
+          transition: width 0.4s ease;
         }
         .modal {
           position: fixed;
@@ -224,11 +283,56 @@ export default function Dashboard() {
           border-radius: 8px;
         }
         .modal img {
-          max-width:  100%;
+          max-width: 100%;
           max-height: 100%;
           width: 500px;
           height: 500px;
-
+        }
+        .progress-bar-container {
+          margin: 20px 0;
+          text-align: center;
+        }
+        .progress-bar {
+          background: #e0e0e0;
+          border-radius: 5px;
+          height: 10px;
+          width: 100%;
+          position: relative;
+        }
+        .progress {
+          background: #4285f4;
+          height: 100%;
+          border-radius: 5px;
+          transition: width 0.4s ease;
+        }
+        .upload-form {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .upload-btn {
+          background-color: #4caf50;
+          color: white;
+          padding: 10px 15px;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          margin-top: 10px;
+        }
+        .upload-btn:hover {
+          background-color: #45a049;
+        }
+        .email-text, .upload-header, .upload-body {
+          color: #000;
+        }
+        .uploaded-images {
+          padding:20px;
+        }
+        .uploaded-images-text {
+          padding:20px;
+        }
+        .upload-img-btn {
+          margin-left:4px;
         }
       `}</style>
     </div>
