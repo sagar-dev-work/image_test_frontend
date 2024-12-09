@@ -1,8 +1,8 @@
 # Frontend Installation (Next.js)
 
 ### Step 1: Clone the Repository
-#### git clone <your-frontend-repository-url>
-#### cd <your-frontend-folder-name>
+#### git clone https://github.com/sagar-dev-work/image_test_frontend.git
+#### cd image_test_frontend
 
 ### Step 2: Install Dependencies
 #### npm install
